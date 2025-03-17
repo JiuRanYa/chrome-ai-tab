@@ -76,15 +76,29 @@ function createSuggestionPopper() {
   popper.style.cssText = `
     position: fixed;
     background: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    max-width: 300px;
+    border-radius: 8px;
+    padding: 8px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-width: 400px;
+    min-width: 300px;
     display: none;
     z-index: 10000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   `;
   document.body.appendChild(popper);
+  
+  // 添加提示文本
+  const hint = document.createElement('div');
+  hint.style.cssText = `
+    padding: 8px 12px;
+    color: #666;
+    font-size: 12px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 4px;
+  `;
+  hint.innerHTML = '<span style="margin-right: 4px;">⌨️</span> Use arrow keys to navigate';
+  popper.appendChild(hint);
+  
   return popper;
 }
 
@@ -104,45 +118,108 @@ document.addEventListener('keydown', function(e) {
     e.preventDefault();
     
     currentInput = e.target;
-    const currentValue = currentInput.value;
     
     // 显示建议列表
     const suggestions = [
-      '测试文本1',
-      '测试文本2',
-      '测试文本3',
-      // 这里可以根据需要添加更多建议
+      {
+        title: 'Write professional emails',
+        description: 'Generate formal business correspondence'
+      },
+      {
+        title: 'Create marketing copy',
+        description: 'Craft compelling advertising content'
+      },
+      {
+        title: 'Draft blog posts',
+        description: 'Generate engaging article content'
+      },
+      {
+        title: 'Compose social media posts',
+        description: 'Create viral-worthy content'
+      },
+      {
+        title: 'Generate product descriptions',
+        description: 'Write detailed product features'
+      }
     ];
     
     // 更新弹出层内容
-    suggestionPopper.innerHTML = suggestions.map((suggestion, index) => `
-      <div class="suggestion-item" style="
-        padding: 4px 8px;
-        cursor: pointer;
-        ${index === 0 ? 'background: #f0f0f0;' : ''}
-        hover: {background: #f0f0f0;}
-      ">
-        ${suggestion}
+    suggestionPopper.innerHTML = `
+      <div style="padding: 8px 12px; color: #666; font-size: 12px; border-bottom: 1px solid #eee; margin-bottom: 4px;">
+        <span style="margin-right: 4px;">⌨️</span> Use arrow keys to navigate
       </div>
-    `).join('');
+      ${suggestions.map((suggestion, index) => `
+        <div class="suggestion-item" style="
+          padding: 12px;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          ${index === 0 ? 'background: #f0f5ff;' : ''}
+        ">
+          <div style="flex: 1;">
+            <div style="font-size: 14px; margin-bottom: 4px;">${suggestion.title}</div>
+            <div style="font-size: 12px; color: #666;">${suggestion.description}</div>
+          </div>
+          <div style="margin-left: 12px; color: #999;">
+            <span style="font-size: 16px;">›</span>
+          </div>
+        </div>
+      `).join('')}
+    `;
     
     // 显示弹出层
     suggestionPopper.style.display = 'block';
     positionPopper(currentInput);
     
-    // 添加点击事件
+    // 添加点击和悬停事件
     const items = suggestionPopper.querySelectorAll('.suggestion-item');
     items.forEach(item => {
       item.addEventListener('click', function() {
-        currentInput.value = this.textContent.trim();
+        currentInput.value = this.querySelector('div > div:first-child').textContent.trim();
         suggestionPopper.style.display = 'none';
       });
       
       item.addEventListener('mouseover', function() {
         items.forEach(i => i.style.background = 'none');
-        this.style.background = '#f0f0f0';
+        this.style.background = '#f0f5ff';
+      });
+      
+      item.addEventListener('mouseout', function() {
+        if (!this.classList.contains('active')) {
+          this.style.background = 'none';
+        }
       });
     });
+  }
+});
+
+// 添加键盘导航
+let currentIndex = 0;
+document.addEventListener('keydown', function(e) {
+  if (suggestionPopper.style.display === 'block') {
+    const items = suggestionPopper.querySelectorAll('.suggestion-item');
+    
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[currentIndex].style.background = 'none';
+      
+      if (e.key === 'ArrowDown') {
+        currentIndex = (currentIndex + 1) % items.length;
+      } else {
+        currentIndex = (currentIndex - 1 + items.length) % items.length;
+      }
+      
+      items[currentIndex].style.background = '#f0f5ff';
+      items[currentIndex].scrollIntoView({ block: 'nearest' });
+    }
+    
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const selectedItem = items[currentIndex];
+      currentInput.value = selectedItem.querySelector('div > div:first-child').textContent.trim();
+      suggestionPopper.style.display = 'none';
+    }
   }
 });
 
