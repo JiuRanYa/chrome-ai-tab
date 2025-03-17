@@ -30,47 +30,6 @@ function getAbsolutePosition(element) {
 let currentInput = null;
 let currentOverlay = null;
 
-// 监听输入事件
-document.addEventListener('input', function(e) {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-    const inputValue = e.target.value;
-    
-    // 创建或更新覆盖层
-    if (currentInput !== e.target) {
-      if (currentOverlay) {
-        currentOverlay.remove();
-      }
-      currentInput = e.target;
-      currentOverlay = createOverlay(currentInput);
-    }
-
-    // 更新覆盖层位置
-    const pos = getAbsolutePosition(currentInput);
-    currentOverlay.style.top = `${pos.top}px`;
-    currentOverlay.style.left = `${pos.left}px`;
-    currentOverlay.style.width = `${currentInput.offsetWidth}px`;
-    currentOverlay.style.height = `${currentInput.offsetHeight}px`;
-
-    // 显示提示文本
-    if (inputValue) {
-      chrome.storage.local.get(['inputHistory'], function(result) {
-        const history = result.inputHistory || [];
-        const suggestions = history.filter(item => 
-          item.toLowerCase().startsWith(inputValue.toLowerCase())
-        );
-
-          const suggestion = '测试1231312312312312231';
-          const completionText = suggestion.slice(inputValue.length);
-          currentOverlay.textContent = inputValue + completionText;
-          // 高亮显示补全部分
-          currentOverlay.innerHTML = `${inputValue}<span style="color: #ccc">${completionText}</span>`;
-      });
-    } else {
-      currentOverlay.textContent = '';
-    }
-  }
-});
-
 // 监听Tab键
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Tab' && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
@@ -108,5 +67,102 @@ window.addEventListener('scroll', function() {
     const pos = getAbsolutePosition(currentInput);
     currentOverlay.style.top = `${pos.top}px`;
     currentOverlay.style.left = `${pos.left}px`;
+  }
+});
+
+// 创建建议弹出层
+function createSuggestionPopper() {
+  const popper = document.createElement('div');
+  popper.style.cssText = `
+    position: fixed;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    max-width: 300px;
+    display: none;
+    z-index: 10000;
+  `;
+  document.body.appendChild(popper);
+  return popper;
+}
+
+// 存储当前输入框和弹出层
+let suggestionPopper = createSuggestionPopper();
+
+// 定位弹出层
+function positionPopper(target) {
+  const rect = target.getBoundingClientRect();
+  suggestionPopper.style.top = `${rect.bottom + 5}px`;
+  suggestionPopper.style.left = `${rect.left}px`;
+}
+
+// 监听键盘事件
+document.addEventListener('keydown', function(e) {
+  if (e.shiftKey && e.key === 'Tab' && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+    e.preventDefault();
+    
+    currentInput = e.target;
+    const currentValue = currentInput.value;
+    
+    // 显示建议列表
+    const suggestions = [
+      '测试文本1',
+      '测试文本2',
+      '测试文本3',
+      // 这里可以根据需要添加更多建议
+    ];
+    
+    // 更新弹出层内容
+    suggestionPopper.innerHTML = suggestions.map((suggestion, index) => `
+      <div class="suggestion-item" style="
+        padding: 4px 8px;
+        cursor: pointer;
+        ${index === 0 ? 'background: #f0f0f0;' : ''}
+        hover: {background: #f0f0f0;}
+      ">
+        ${suggestion}
+      </div>
+    `).join('');
+    
+    // 显示弹出层
+    suggestionPopper.style.display = 'block';
+    positionPopper(currentInput);
+    
+    // 添加点击事件
+    const items = suggestionPopper.querySelectorAll('.suggestion-item');
+    items.forEach(item => {
+      item.addEventListener('click', function() {
+        currentInput.value = this.textContent.trim();
+        suggestionPopper.style.display = 'none';
+      });
+      
+      item.addEventListener('mouseover', function() {
+        items.forEach(i => i.style.background = 'none');
+        this.style.background = '#f0f0f0';
+      });
+    });
+  }
+});
+
+// 点击其他地方关闭弹出层
+document.addEventListener('click', function(e) {
+  if (!suggestionPopper.contains(e.target) && e.target !== currentInput) {
+    suggestionPopper.style.display = 'none';
+  }
+});
+
+// 监听滚动事件，更新弹出层位置
+window.addEventListener('scroll', function() {
+  if (currentInput && suggestionPopper.style.display === 'block') {
+    positionPopper(currentInput);
+  }
+});
+
+// ESC键关闭弹出层
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    suggestionPopper.style.display = 'none';
   }
 }); 
